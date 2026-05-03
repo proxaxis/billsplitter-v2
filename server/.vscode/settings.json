@@ -1,0 +1,10 @@
+{
+  "editor.formatOnSave": true,
+  "prettier.singleQuote": true,
+  "js/ts.preferences.quoteStyle": "single",
+  "files.insertFinalNewline": true,
+  "prettier.semi": true,
+  "editor.wordWrapColumn": 150,
+  "prettier.printWidth": 150,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}

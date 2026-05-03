@@ -1,0 +1,51 @@
+services:
+  database:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: billsplitter_database
+    environment:
+      MYSQL_ROOT_PASSWORD: M5deUqIO2RxLrEEiOeIIPm2VCK5fdpvjlBURDx0EPTvm2YJ5CFzr0UqLKwyVHOu6ZY9xb08pDTgtgGUjUk4FNc1iJGKAOwSivmEvp1KuIo60taRV2Ldh0hfLO9iqtZ5a
+      MYSQL_DATABASE: billsplitter_database
+      MYSQL_USER: app
+      MYSQL_PASSWORD: Qv7eWBN5BcEQrOl1t7WGIhhyo76JhqhwlxcSqNw2Q7itdH9wNtvaIWZEOv9xTIReBnnKspzwzigYk3Bbu7HKjHZXxRPCSlnvWJ9bWTglhIQI4TZ7GotTfFNsbHw1oA2c
+    volumes:
+      - ./database/resource:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - app_network
+
+  server:
+    container_name: billsplitter_server
+    build: ./server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./server:/var/www/html
+    environment:
+      - DB_HOST=database
+      - DB_NAME=billsplitter_database
+      - DB_USER=app
+      - DB_PASS=Qv7eWBN5BcEQrOl1t7WGIhhyo76JhqhwlxcSqNw2Q7itdH9wNtvaIWZEOv9xTIReBnnKspzwzigYk3Bbu7HKjHZXxRPCSlnvWJ9bWTglhIQI4TZ7GotTfFNsbHw1oA2c
+    depends_on:
+      - database
+    networks:
+      - app_network
+
+  client:
+    image: node:24.12.0
+    container_name: billsplitter_client
+    user: node
+    working_dir: /app
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./client:/app
+    ports:
+      - "5173:5173"
+    command: npm install && npm run dev
+    depends_on:
+      - server
+    networks:
+      - app_network

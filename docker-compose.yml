@@ -27,25 +27,31 @@ services:
       - DB_NAME=billsplitter_database
       - DB_USER=app
       - DB_PASS=Qv7eWBN5BcEQrOl1t7WGIhhyo76JhqhwlxcSqNw2Q7itdH9wNtvaIWZEOv9xTIReBnnKspzwzigYk3Bbu7HKjHZXxRPCSlnvWJ9bWTglhIQI4TZ7GotTfFNsbHw1oA2c
+      - CORS_ORIGIN_BASE_URL=http://localhost:5173
     depends_on:
       - database
     networks:
       - app_network
 
   client:
-    image: node:24.12.0
+    build:
+      context: ./client
+      dockerfile: Dockerfile
     container_name: billsplitter_client
-    user: node
     working_dir: /app
     environment:
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./client:/app
+      - /app/node_modules
     ports:
       - "5173:5173"
-    command: npm install && npm run dev
     depends_on:
       - server
     networks:
       - app_network
+      
+networks:
+  app_network:
+    driver: bridge

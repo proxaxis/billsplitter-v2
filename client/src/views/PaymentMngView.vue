@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { request, toSafeString } from '@/utils/fetch';
+import { request } from '@/utils/fetch';
 import { useGroupStore } from '@/stores/group';
 import { usePaymentStore } from '@/stores/payment';
 import AppHeader from '@/components/AppHeader.vue';
@@ -41,8 +41,8 @@ const vmInputCurrency = ref(groupStore.g.currency);
 const vmExchangeRate = ref(1);
 const vmPaidAt = ref(new Date().toISOString());
 
-const grpId = computed(() => toSafeString(route.params.grpId));
-const payId = computed(() => toSafeString(route.params.payId));
+const grpId = computed(() => route.params.grpId);
+const payId = computed(() => route.params.payId);
 
 const nowCalculatedAmount = computed(() => {
   const formula = vmAmountExpression.value;
@@ -119,43 +119,43 @@ async function submit() {
   };
 
   // 新規登録モード
+  userStore.isGroupDataLoading = true;
+
   if (props.inNewMode) {
-    userStore.isLoading = true;
     try {
       const res = await request(`/g/${grpId.value}/new`, {
         method: 'POST',
         body: payload,
       });
       paymentStore.addPayment(res);
+      toast.message('支払いを登録しました');
       router.push({ name: 'GroupHome', params: { grpId: grpId.value } });
     } catch (error) {
       toast.alert('支払いの登録に失敗しました');
     } finally {
-      userStore.isLoading = false;
+      userStore.isGroupDataLoading = false;
     }
   }
   // 編集モード
   else {
-    userStore.isLoading = true;
     try {
-      const res = await request(`/g/${grpId.value}/${payId.value}`, {
+      await request(`/g/${grpId.value}/${payId.value}`, {
         method: 'PATCH',
         body: payload,
       });
-      console.log('Updated payment:', res);
-      paymentStore.updatePayment(res);
+      toast.message('支払いを更新しました');
       router.push({ name: 'GroupHome', params: { grpId: grpId.value } });
     } catch (error) {
       toast.alert('支払いの更新に失敗しました');
     } finally {
-      userStore.isLoading = false;
+      userStore.isGroupDataLoading = false;
     }
   }
 
 }
 
 onMounted(async () => {
-  await groupStore.init(grpId.value);
+  groupStore.id = grpId.value;
 
   if (!props.inNewMode) {
     const pm = paymentStore.getPaymentById(payId.value);

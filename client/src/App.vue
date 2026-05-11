@@ -9,7 +9,7 @@ import AppDialog from '@/components/AppDialog.vue';
 const userStore = useUserStore();
 
 onMounted(() => {
-  userStore.isLoading = true;
+  userStore.isSystemDataLoading = true;
   // システムのテーマ設定を取得
   const systemTheme = (() => {
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -28,7 +28,7 @@ onMounted(() => {
   };
   mediaQuery.addEventListener('change', handleThemeChange);
 
-  userStore.isLoading = false;
+  userStore.isSystemDataLoading = false;
 });
 
 onUnmounted(() => {
@@ -40,7 +40,7 @@ onUnmounted(() => {
 <template>
   <router-view />
 
-  <LoadingSpinner v-if="userStore.isLoading" />
+  <LoadingSpinner v-if="userStore.isGroupDataLoading || userStore.isSystemDataLoading" />
   <AppToast />
   <AppDialog />
 

@@ -1,9 +1,9 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGroupStore } from '@/stores/group';
 import { useUserStore } from '@/stores/user';
-import { request, toSafeString } from '@/utils/fetch';
+import { request } from '@/utils/fetch';
 import EmojiSelector from '@/components/EmojiSelector.vue';
 import DateSelector from '@/components/DateSelector.vue';
 import TimeZoneSelector from '@/components/TimeZoneSelector.vue';
@@ -43,7 +43,7 @@ const editingMemberName = ref('');
 
 
 
-const grpId = computed(() => toSafeString(route.params.grpId));
+const grpId = computed(() => route.params.grpId);
 const isMembersDirty = computed(() => {
   if (!groupStore.g) return false;
   if (vmMembers.value.length !== groupStore.g.members.length) return true;
@@ -121,7 +121,7 @@ async function submit() {
     if (!confirmed) return;
   }
 
-  userStore.isLoading = true;
+  userStore.isGroupDataLoading = true;
 
   try {
     // グループの新規作成
@@ -139,6 +139,7 @@ async function submit() {
           members: vmMembers.value,
         },
       });
+      toast.message('グループを新規作成しました');
       router.push({ name: 'GroupHome', params: { grpId: response?.id } });
     }
     // グループの更新
@@ -171,6 +172,8 @@ async function submit() {
         method: 'PATCH',
         body: members,
       });
+
+      toast.message('グループを更新しました');
       router.push({ name: 'GroupHome', params: { grpId: grpId.value } });
     }
   } catch (error) {
@@ -178,72 +181,28 @@ async function submit() {
     toast.alert('グループの保存に失敗しました');
     return;
   } finally {
-    userStore.isLoading = false;
+    userStore.isGroupDataLoading = false;
   }
 }
 
-async function submitCategoriesAndSubGroups() {
-  userStore.isLoading = true;
+watch(() => userStore.isGroupDataLoaded, (isLoaded) => {
+  if (isLoaded) {
+    if (props.inNewMode) return;
 
-  try {
-    // カテゴリの更新
-    if (isCategoriesDirty.value) {
-      const categories = (() => {
-        const add = vmCategories.value.filter((c) => c.id === null).map((c) => ({ name: c.name }));
-        const rename = vmCategories.value.filter((c) => c.id !== null).map((c) => ({ id: c.id, name: c.name }));
-        const remove = (groupStore.g?.categories || []).filter((c) => !vmCategories.value.some((vc) => vc.id === c.id)).map((c) => c.id);
-        return { add, rename, remove };
-      })();
-
-      if (categories.add.length > 0 || categories.rename.length > 0 || categories.remove.length > 0) {
-        await request(`/g/${route.params.grpId}/categories`, {
-          method: 'PATCH',
-          body: categories,
-        });
-      }
-    }
-
-    // サブグループの更新
-    if (isSubGroupsDirty.value) {
-      const subGroups = (() => {
-        const add = vmSubGroups.value.filter((sg) => sg.id === null).map((sg) => ({ name: sg.name, members: sg.members }));
-        const names = vmSubGroups.value.filter((sg) => sg.id !== null).map((sg) => ({ id: sg.id, name: sg.name }));
-        const members = vmSubGroups.value.filter((sg) => sg.id !== null && sg.members).map((sg) => ({ id: sg.id, members: sg.members }));
-        const remove = (groupStore.g?.sub_groups || []).filter((sg) => !vmSubGroups.value.some((vsg) => vsg.id === sg.id)).map((sg) => sg.id);
-        return { add, names, members, remove };
-      })();
-
-      if (subGroups.add.length > 0 || subGroups.names.length > 0 || subGroups.members.length > 0 || subGroups.remove.length > 0) {
-        await request(`/g/${route.params.grpId}/sub-groups`, {
-          method: 'PATCH',
-          body: subGroups,
-        });
-      }
-    }
-
-    toast.alert('カテゴリとサブグループを保存しました');
-  } catch (error) {
-    console.error(error);
-    toast.alert('カテゴリとサブグループの保存に失敗しました');
-  } finally {
-    userStore.isLoading = false;
+    vmGroupName.value = groupStore.g.name;
+    vmStartDate.value = groupStore.g.startAt ?? '';
+    vmEndDate.value = groupStore.g.endAt ?? '';
+    vmMembers.value = groupStore.g.members.map((m) => ({ id: m.id, name: m.name, icon: m.icon, isNew: false }));
+    vmGroupDescription.value = groupStore.g.description;
+    vmGroupIcon.value = groupStore.g.icon;
+    vmCurrency.value = groupStore.g.currency;
+    vmTimeZone.value = groupStore.g.timezone;
   }
-}
+}, { immediate: true });
 
 onMounted(async () => {
   if (props.inNewMode) return;
-
-  await groupStore.init(grpId.value);
-  vmGroupName.value = groupStore.g.name;
-  vmStartDate.value = groupStore.g.startAt ?? '';
-  vmEndDate.value = groupStore.g.endAt ?? '';
-  vmMembers.value = groupStore.g.members.map((m) => ({ id: m.id, name: m.name, icon: m.icon, isNew: false }));
-  vmGroupDescription.value = groupStore.g.description;
-  vmGroupIcon.value = groupStore.g.icon;
-  vmCurrency.value = groupStore.g.currency;
-  vmTimeZone.value = groupStore.g.timezone;
-  vmCategories.value = (groupStore.g.categories || []).map((c) => ({ id: c.id, name: c.name, isNew: false }));
-  vmSubGroups.value = (groupStore.g.sub_groups || []).map((sg) => ({ id: sg.id, name: sg.name, members: [...sg.members], isNew: false }));
+  groupStore.id = grpId.value;
 });
 </script>
 
@@ -359,9 +318,6 @@ onMounted(async () => {
       </main>
       <footer>
         <button v-if="!props.inNewMode" @click="router.push({ name: 'GroupHome', params: { grpId }})">変更を保存せずにホームに戻る</button>
-        <button v-if="!props.inNewMode && (isCategoriesDirty || isSubGroupsDirty)" @click="submitCategoriesAndSubGroups">
-          カテゴリとサブグループを保存
-        </button>
         <button @click="submit">
           <span v-if="props.inNewMode">グループを作成</span>
           <span v-else>変更を保存</span>

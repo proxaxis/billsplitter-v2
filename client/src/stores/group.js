@@ -89,21 +89,18 @@ export const useGroupStore = defineStore('group', () => {
   });
 
   function getMemberById(mmId) {
-    // console.trace('getMemberById', mmId, data.value.members);
     const member = data.value.members.find((m) => m.id === mmId) ?? { uid: null, id: mmId, name: 'Unknown', icon: '🫥' };
     member.banner = member.icon + member.name;
     return member;
   }
 
   function getSubGroupById(sgId) {
-    return (
-      data.value.subGroups.find((sg) => sg.id === sgId) || {
-        id: sgId,
-        name: 'Unknown Subgroup',
-        icon: '🫥',
-        members: [],
-      }
-    );
+    return data.value.subGroups.find((sg) => sg.id === sgId) || {
+      id: sgId,
+      name: 'Unknown Subgroup',
+      icon: '🫥',
+      members: [],
+    };
   }
 
   function getCategoryById(ctId) {
@@ -127,27 +124,21 @@ export const useGroupStore = defineStore('group', () => {
     return d;
   }
 
-  const init = (grpId) => new Promise(async (resolve, reject) => {
-    grpId = toSafeString(grpId).trim();
+  watch(() => id.value, async (grpId) => {
     if (grpId === '' || grpId === undefined || grpId === null) {
-      resolve();
       return;
     }
-    id.value = grpId;
+
     try {
-      userStore.isLoading = true;
-      const res = await _fetchGroupInfo(grpId);
-      console.log('Group info loaded', res);
-      paymentStore.page = 1;
-      await paymentStore.fetchPaymentsData(grpId, 1);
-      resolve();
+      userStore.isGroupDataLoading = true;
+      await _fetchGroupInfo(grpId);
+      paymentStore.doReload = true;
     } catch (error) {
-      console.error(error);
-      reject(error);
+      toast.alert('グループ情報の読み込みに失敗しました');
     } finally {
-      userStore.isLoading = false;
+      userStore.isGroupDataLoading = false;
     }
-  });
+  }, { flush: 'post' });
 
   return {
     id,
@@ -155,6 +146,5 @@ export const useGroupStore = defineStore('group', () => {
     getMemberById,
     getSubGroupById,
     getCategoryById,
-    init,
   };
 });

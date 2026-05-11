@@ -5,7 +5,6 @@ import { useGroupStore } from '@/stores/group';
 import { useUserStore } from '@/stores/user';
 import { usePaymentStore } from '@/stores/payment';
 import { copy, share } from '@/utils/navigator';
-import { toSafeString } from '@/utils/fetch';
 import CurrencyRibbon from '@/components/CurrencyRibbon.vue';
 import IconPenToSquare from '@/components/icons/IconPenToSquare.vue';
 import IconPlus from '@/components/icons/IconPlus.vue';
@@ -19,6 +18,7 @@ import toast from '@/utils/toast';
 import MemberChip from '@/components/MemberChip.vue';
 import IconUserGroup from '@/components/icons/IconUserGroup.vue';
 import IconShareFromSquare from '@/components/icons/IconShareFromSquare.vue';
+import IconRotate from '@/components/icons/IconRotate.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -30,7 +30,7 @@ const expandedPayments = ref(new Set());
 
 const PAYEE_PREVIEW_COUNT = 2;
 
-const grpId = computed(() => toSafeString(route.params.grpId));
+const grpId = computed(() => route.params.grpId);
 
 const getPayeesFullLabel = (payees) =>
   payees
@@ -48,7 +48,7 @@ const getPayeesCompactLabel = (payees) => {
     .map((m) => m.banner);
   const hiddenCount = payees.length - PAYEE_PREVIEW_COUNT;
 
-  return hiddenCount > 0 ? `${visible.join('、')} 他 ${hiddenCount} 名` : visible.join('、');
+  return hiddenCount > 0 ? `${visible.join('、')}、他 ${hiddenCount} 名` : visible.join('、');
 };
 
 const isPayeesExpanded = (pmId) => expandedPayees.value.has(pmId);
@@ -86,9 +86,9 @@ const collapseAllPayments = () => {
 const copyGroupId = async () => {
   try {
     await copy(groupStore.id);
-    toast.message('グループIDをコピーしました');
+    toast.message('グループ ID をコピーしました');
   } catch (error) {
-    toast.error('グループIDのコピーに失敗しました');
+    toast.error('グループ ID のコピーに失敗しました');
   }
 };
 
@@ -134,8 +134,12 @@ async function copyTransaction() {
   }
 }
 
-onMounted(async () => {
-  await groupStore.init(grpId.value);
+function reloadPayments() {
+  paymentStore.doReload = true;
+}
+
+onMounted(() => {
+  groupStore.id = grpId.value;
 });
 </script>
 
@@ -254,9 +258,13 @@ onMounted(async () => {
               <div class="history-controls">
                 <button type="button" @click="expandAllPayments">全て開く</button>
                 <button type="button" @click="collapseAllPayments">全て閉じる</button>
+                <button type="button" @click="reloadPayments"><IconRotate size="1rem" /></button>
               </div>
             </div>
-            <ul v-if="paymentStore.p.length > 0" class="payments-list">
+            <div v-if="userStore.isLoading" class="empty loading-sparkles">
+              <p>読み込み中...</p>
+            </div>
+            <ul v-else-if="paymentStore.p.length > 0" class="payments-list">
               <li v-for="p in paymentStore.p" :key="p.id">
                 <details :open="isPaymentExpanded(p.id)">
                   <summary class="payment-summary" :class="{ highlight: p.type === 'repayment' }" @click.prevent="togglePaymentExpanded(p.id)">
@@ -383,17 +391,12 @@ onMounted(async () => {
   gap: 0.45rem;
 
   button {
+    @include var.buttonAnimation();
     border: 1px solid var(--border);
     border-radius: var(--border-radius);
     background-color: var(--bg-1);
     color: var(--text-0);
-    cursor: pointer;
     padding: 0.25rem 0.55rem;
-
-    &:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
   }
 }
 
@@ -457,6 +460,52 @@ onMounted(async () => {
 .payment-summary {
   display: flex;
   justify-content: space-between;
+}
+
+.loading-sparkles {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, var(--bg-1), var(--bg-2));
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -35%;
+    pointer-events: none;
+    background-repeat: repeat;
+    will-change: transform, opacity, background-position;
+  }
+
+  &::before {
+    background-image:
+      radial-gradient(circle, color-mix(in srgb, var(--bg-0) 80%, transparent) 0 1px, transparent 1.8px),
+      radial-gradient(circle, color-mix(in srgb, var(--bg-3) 55%, transparent) 0 1px, transparent 2.2px);
+    background-size: 120px 120px, 180px 180px;
+    opacity: 0.35;
+    animation:
+      sparkle-drift 24s linear infinite,
+      sparkle-fade 4.8s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.18));
+  }
+
+  &::after {
+    inset: -15%;
+    background: linear-gradient(120deg, transparent 0 44%, color-mix(in srgb, var(--bg-3) 35%, transparent) 50%, transparent 56%);
+    opacity: 0.35;
+    transform: translateX(-40%);
+    animation: sparkle-sweep 7.5s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+
+  p {
+    position: relative;
+    z-index: 1;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
 }
 
 .payment-actions {
@@ -612,6 +661,42 @@ footer {
 .highlight {
   * {
     color: var(--danger);
+  }
+}
+
+@keyframes sparkle-drift {
+  from {
+    transform: translate3d(-2%, -2%, 0) rotate(0deg);
+  }
+
+  to {
+    transform: translate3d(2%, 2%, 0) rotate(8deg);
+  }
+}
+
+@keyframes sparkle-fade {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 0.85;
+  }
+}
+
+@keyframes sparkle-sweep {
+  0% {
+    transform: translateX(-55%) skewX(-12deg);
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: translateX(55%) skewX(-12deg);
+    opacity: 0;
   }
 }
 </style>

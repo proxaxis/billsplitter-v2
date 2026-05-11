@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://bill-server.xcw.me:50001').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_SERVER_BASE_URL).replace(/\/$/, '');
 
 export function toSafeString(value) {
   return encodeURIComponent(value);
@@ -17,6 +17,7 @@ export async function request(path, options = {}) {
       'Content-Type': 'application/json',
     },
     ...options,
+    credentials: 'include',
   };
 
   if (opt.method === 'GET') {

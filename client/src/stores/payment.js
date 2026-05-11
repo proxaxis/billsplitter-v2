@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { useGroupStore } from '@/stores/group';
 import { useUserStore } from '@/stores/user';
 import { request, toSafeString } from '@/utils/fetch';
+import toast from '@/utils/toast';
 
 export const usePaymentStore = defineStore('payment', () => {
   const groupStore = useGroupStore();
@@ -10,6 +11,8 @@ export const usePaymentStore = defineStore('payment', () => {
 
   /** @type {number} 現在のページ */
   const page = ref(1);
+
+  const doReload = ref(false);
 
   /**
    * @typedef {Object} Payment
@@ -156,28 +159,6 @@ export const usePaymentStore = defineStore('payment', () => {
     return arr;
   });
   
-  async function fetchPaymentsData(grpId = groupStore.id, pageNum = page.value) {
-    try {
-      const d = await request(`/g/${toSafeString(grpId)}/payments/${toSafeString(pageNum)}`);
-      data.value = d.payments.map((r) => ({
-        id: r.id,
-        name: r.name,
-        description: r.description,
-        amount: r.amount,
-        payer: r.payer,
-        payees: r.payees,
-        paidAt: r.paid_at,
-        createdAt: r.created_at,
-        currency: r.currency,
-        exchangeRate: r.exchange_rate,
-        type: r.type,
-      }));
-    } catch (error) {
-      console.error('Failed to fetch payments data:', error);
-      data.value = [];
-    }
-  }
-
   function getPaymentById(pmId) {
     pmId = Number(pmId);
     const now = new Date();
@@ -269,12 +250,40 @@ export const usePaymentStore = defineStore('payment', () => {
     }
   }
 
+  watch(() => doReload.value, async (to) => {
+    if (to) {
+      try {
+        userStore.isPaymentDataLoading = true;
+        const d = await request(`/g/${toSafeString(groupStore.id)}/payments/${toSafeString(page.value)}`);
+        data.value = d.payments.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          amount: r.amount,
+          payer: r.payer,
+          payees: r.payees,
+          paidAt: r.paid_at,
+          createdAt: r.created_at,
+          currency: r.currency,
+          exchangeRate: r.exchange_rate,
+          type: r.type,
+        }));
+      } catch (error) {
+        toast.alert('支払履歴の読み込みに失敗しました');
+        data.value = [];
+      } finally {
+        doReload.value = false;
+        userStore.isPaymentDataLoading = false;
+      }
+    }
+  });
+
   return {
     page,
+    doReload,
     p,
     balance,
     transactions,
-    fetchPaymentsData,
     addPayment,
     getPaymentById,
     updatePayment,

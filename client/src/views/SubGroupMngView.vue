@@ -3,7 +3,7 @@ import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useGroupStore } from '@/stores/group';
 import { useUserStore } from '@/stores/user';
-import { request, toSafeString } from '@/utils/fetch';
+import { request } from '@/utils/fetch';
 import AppHeader from '@/components/AppHeader.vue';
 import toast from '@/utils/toast';
 import dialog from '@/utils/dialog';
@@ -21,7 +21,7 @@ const vmSelectedSubGroupIndex = ref(-1);
 const vmSelectedSubGroupMembers = ref([]);
 const vmNewSubGroupName = ref('');
 
-const grpId = computed(() => toSafeString(route.params.grpId));
+const grpId = computed(() => route.params.grpId);
 
 const nowSubGroupMembers = computed(() => {
   if (vmSelectedSubGroupIndex.value === -1) {
@@ -81,12 +81,13 @@ async function editThisSubGroupName() {
 }
 
 async function submit() {
+  userStore.isGroupDataLoading = true;
+
   try {
     const add = vmSubGroups.value.filter((sg) => sg.isNew).map((sg) => ({ name: sg.name, members: sg.members }));
     const names = vmSubGroups.value.filter((sg) => !sg.isNew).map((sg) => ({ id: sg.id, name: sg.name }));
     const members = vmSubGroups.value.filter((sg) => !sg.isNew).map((sg) => ({ id: sg.id, members: sg.members }));
     const remove = groupStore.g.subGroups.filter((sg) => !vmSubGroups.value.some((vsg) => !vsg.isNew && vsg.id === sg.id)).map((sg) => sg.id);
-    userStore.isLoading = true;
     await request(`/g/${grpId.value}/sub-groups`, {
       method: 'PATCH',
       body: { add, names, members, remove },
@@ -97,12 +98,12 @@ async function submit() {
     toast.alert('サブグループの更新に失敗しました');
     console.error(error);
   } finally {
-    userStore.isLoading = false;
+    userStore.isGroupDataLoading = false;
   }
 }
 
 onMounted(async () => {
-  await groupStore.init(grpId.value);
+  groupStore.id = grpId.value;
   vmSubGroups.value = groupStore.g.subGroups.map((sg) => ({ id: sg.id, name: sg.name, members: sg.members, isNew: false }));
 });
 </script>

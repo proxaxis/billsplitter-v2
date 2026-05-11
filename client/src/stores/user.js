@@ -1,8 +1,10 @@
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 export const useUserStore = defineStore('user', () => {
-  const isLoading = ref(false);
+  const isGroupDataLoading = ref(false);
+  const isPaymentDataLoading = ref(false);
+  const isSystemDataLoading = ref(false);
   const theme = ref('light');
   const locale = ref('ja-JP');
   const time = ref({
@@ -21,6 +23,9 @@ export const useUserStore = defineStore('user', () => {
     },
   });
 
+  const isLoading = computed(() => isGroupDataLoading.value || isPaymentDataLoading.value || isSystemDataLoading.value);
+  const isGroupDataLoaded = computed(() => !isGroupDataLoading.value);
+
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     theme.value = t;
@@ -31,5 +36,14 @@ export const useUserStore = defineStore('user', () => {
     locale.value = systemLocale;
   });
 
-  return { isLoading, theme, locale, time, applyTheme };
+  return {
+    isGroupDataLoading,
+    isGroupDataLoaded,
+    isPaymentDataLoading,
+    isLoading,
+    theme,
+    locale,
+    time,
+    applyTheme
+  };
 });
